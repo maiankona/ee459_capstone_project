@@ -1,5 +1,5 @@
 # Ruff Route 
-#Introduction#
+# Introduction
 Staying active can be challenging, especially with busy schedules and lacking motivation. Enter the Ruff Route—your fitness companion that ensures you never miss a walk! This interactive robotic dog starts barking if you haven’t walked in the past 24 hours, and the only way to quiet it is by completing at least a one-mile walk. Equipped with GPS navigation, object detection sensors, and real-time tracking, the robot guides you through surprise routes, making each walk exciting. With features like a fingerprint sensor to prevent cheating, adjustable walking speeds, and rewards for longer distances, the Exercise Dog Robot turns daily exercise into a fun and engaging experience!
 Purpose
 A common struggle for many people—whether older adults balancing work and retirement or full-time students buried in coursework—is finding the time and motivation to stay active. Exercise often takes a backseat, making it challenging for diverse groups to build a consistent routine. That's where Ruff Route comes in—turning exercise into a fun and engaging responsibility!
