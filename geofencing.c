@@ -1,180 +1,158 @@
-#include <Wire.h>
-#include <TinyGPS++.h>
-#include <math.h>
+#define F_CPU 7372800UL
+#include <avr/io.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <string.h>
+#include <stdlib.h>
 
-// GPS module connection via hardware serial
+// GPS USART configuration
 #define GPS_BAUD 9600
-#define EARTH_RADIUS 6371000  // Earth's radius in meters
-#define PROXIMITY_THRESHOLD 10.0  // 10 meters threshold for waypoint proximity
-#define MAX_SPEED 2.0  // Maximum speed in m/s for safety checks
+#define GPS_UBRR ((F_CPU / (16UL * GPS_BAUD)) - 1)
 
 // Predefined route coordinates (latitude and longitude)
 const float route[] = {
     34.0206, -118.2867, // Point 1: USC Campus
     34.0215, -118.2850, // Point 2: Another location around USC
     34.0220, -118.2870, // Point 3: Another location around USC
-    // Add more points as needed
 };
 
 // Number of points in the route
-const int route_size = sizeof(route) / sizeof(route[0]) / 2;
+const uint8_t route_size = sizeof(route) / sizeof(route[0]) / 2;
 
-TinyGPSPlus gps;
-int currentWaypoint = 0;
-bool routeComplete = false;
-unsigned long lastUpdate = 0;
-const unsigned long UPDATE_INTERVAL = 1000; // Update every second
-
-// Structure to hold GPS data
+// GPS data structure
 struct GPSData {
     float latitude;
     float longitude;
-    float speed;
-    float course;
-    bool isValid;
+    uint8_t isValid;
 };
 
-void setup() {
-    Serial.begin(9600);
-    Serial1.begin(GPS_BAUD);
-    Serial.println("GPS Geofencing System Initialized");
+// USART initialization
+void usart_init() {
+    // Set baud rate
+    UBRR0H = (uint8_t)(GPS_UBRR >> 8);
+    UBRR0L = (uint8_t)GPS_UBRR;
+    
+    // Enable receiver and transmitter
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+    
+    // Set frame format: 8 data bits, 1 stop bit
+    UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
 }
 
-void loop() {
-    // Read GPS data
-    while (Serial1.available() > 0) {
-        gps.encode(Serial1.read());
-    }
+// USART transmit function
+void usart_transmit(uint8_t data) {
+    // Wait for empty transmit buffer
+    while (!(UCSR0A & (1 << UDRE0)));
+    // Put data into buffer
+    UDR0 = data;
+}
 
-    // Update at regular intervals
-    if (millis() - lastUpdate >= UPDATE_INTERVAL) {
-        lastUpdate = millis();
+// USART receive function
+uint8_t usart_receive() {
+    // Wait for data to be received
+    while (!(UCSR0A & (1 << RXC0)));
+    // Get and return received data
+    return UDR0;
+}
+
+// Parse NMEA sentence
+uint8_t parse_nmea(char* sentence, struct GPSData* gps) {
+    // Check if it's a GGA sentence
+    if (strncmp(sentence, "$GPGGA", 6) == 0) {
+        char* token = strtok(sentence, ",");
+        uint8_t field = 0;
         
-        GPSData currentData = getGPSData();
-        
-        if (currentData.isValid) {
-            printGPSData(currentData);
-            
-            if (!routeComplete) {
-                checkWaypointProximity(currentData);
-                checkRouteProgress(currentData);
+        while (token != NULL) {
+            switch (field) {
+                case 2: // Latitude
+                    if (strlen(token) > 0) {
+                        gps->latitude = atof(token) / 100.0;
+                    }
+                    break;
+                case 4: // Longitude
+                    if (strlen(token) > 0) {
+                        gps->longitude = atof(token) / 100.0;
+                    }
+                    break;
+                case 6: // Fix quality
+                    gps->isValid = (atoi(token) > 0);
+                    break;
             }
-        } else {
-            Serial.println("Waiting for valid GPS signal...");
+            token = strtok(NULL, ",");
+            field++;
         }
+        return 1;
     }
-}
-
-GPSData getGPSData() {
-    GPSData data;
-    data.isValid = false;
-    
-    if (gps.location.isValid() && gps.speed.isValid() && gps.course.isValid()) {
-        data.latitude = gps.location.lat();
-        data.longitude = gps.location.lng();
-        data.speed = gps.speed.mps();
-        data.course = gps.course.deg();
-        data.isValid = true;
-    }
-    
-    return data;
-}
-
-void printGPSData(GPSData data) {
-    Serial.print("Location: ");
-    Serial.print(data.latitude, 6);
-    Serial.print(", ");
-    Serial.print(data.longitude, 6);
-    Serial.print(" | Speed: ");
-    Serial.print(data.speed, 1);
-    Serial.print(" m/s | Course: ");
-    Serial.print(data.course, 1);
-    Serial.println("°");
-}
-
-void checkWaypointProximity(GPSData currentData) {
-    float routeLat = route[2 * currentWaypoint];
-    float routeLon = route[2 * currentWaypoint + 1];
-    
-    float distance = calculateDistance(currentData.latitude, currentData.longitude, 
-                                     routeLat, routeLon);
-    
-    if (distance <= PROXIMITY_THRESHOLD) {
-        Serial.print("Reached waypoint ");
-        Serial.print(currentWaypoint + 1);
-        Serial.print("! Distance: ");
-        Serial.print(distance, 1);
-        Serial.println(" meters");
-        
-        // Move to next waypoint
-        currentWaypoint++;
-        if (currentWaypoint >= route_size) {
-            routeComplete = true;
-            Serial.println("Route completed!");
-        }
-    }
-}
-
-void checkRouteProgress(GPSData currentData) {
-    // Calculate distance to next waypoint
-    float routeLat = route[2 * currentWaypoint];
-    float routeLon = route[2 * currentWaypoint + 1];
-    float distance = calculateDistance(currentData.latitude, currentData.longitude, 
-                                     routeLat, routeLon);
-    
-    // Calculate bearing to next waypoint
-    float bearing = calculateBearing(currentData.latitude, currentData.longitude,
-                                   routeLat, routeLon);
-    
-    // Calculate heading error
-    float headingError = fabs(bearing - currentData.course);
-    if (headingError > 180) {
-        headingError = 360 - headingError;
-    }
-    
-    Serial.print("Distance to next waypoint: ");
-    Serial.print(distance, 1);
-    Serial.print("m | Heading error: ");
-    Serial.print(headingError, 1);
-    Serial.println("°");
-    
-    // Safety checks
-    if (currentData.speed > MAX_SPEED) {
-        Serial.println("WARNING: Speed exceeds maximum limit!");
-    }
+    return 0;
 }
 
 // Calculate distance between two points using Haversine formula
-float calculateDistance(float lat1, float lon1, float lat2, float lon2) {
-    float dLat = radians(lat2 - lat1);
-    float dLon = radians(lon2 - lon1);
+float calculate_distance(float lat1, float lon1, float lat2, float lon2) {
+    float dLat = (lat2 - lat1) * M_PI / 180.0;
+    float dLon = (lon2 - lon1) * M_PI / 180.0;
     
     float a = sin(dLat/2) * sin(dLat/2) +
-              cos(radians(lat1)) * cos(radians(lat2)) *
+              cos(lat1 * M_PI / 180.0) * cos(lat2 * M_PI / 180.0) *
               sin(dLon/2) * sin(dLon/2);
               
     float c = 2 * atan2(sqrt(a), sqrt(1-a));
-    return EARTH_RADIUS * c;
+    return 6371000 * c; // Earth's radius in meters
 }
 
-// Calculate bearing between two points
-float calculateBearing(float lat1, float lon1, float lat2, float lon2) {
-    float dLon = radians(lon2 - lon1);
+// Check if current location is near any route point
+uint8_t check_route_proximity(struct GPSData* current) {
+    for (uint8_t i = 0; i < route_size; i++) {
+        float distance = calculate_distance(
+            current->latitude, current->longitude,
+            route[2*i], route[2*i+1]
+        );
+        
+        if (distance <= 15.0) { // 515 meters threshold
+            return i + 1; // Return point number (1-based)
+        }
+    }
+    return 0;
+}
+
+int main(void) {
+    // Initialize USART
+    usart_init();
     
-    float y = sin(dLon) * cos(radians(lat2));
-    float x = cos(radians(lat1)) * sin(radians(lat2)) -
-              sin(radians(lat1)) * cos(radians(lat2)) * cos(dLon);
-              
-    float bearing = degrees(atan2(y, x));
-    return fmod((bearing + 360), 360);
-}
-
-// Helper function to convert degrees to radians
-float radians(float degrees) {
-    return degrees * M_PI / 180.0;
-}
-
-// Helper function to convert radians to degrees
-float degrees(float radians) {
-    return radians * 180.0 / M_PI;
+    // Buffer for NMEA sentences
+    char nmea_buffer[100];
+    uint8_t buffer_index = 0;
+    
+    // GPS data structure
+    struct GPSData current_gps = {0, 0, 0};
+    
+    while (1) {
+        // Read GPS data
+        if (UCSR0A & (1 << RXC0)) {
+            char c = usart_receive();
+            
+            if (c == '$') {
+                buffer_index = 0;
+            }
+            
+            if (buffer_index < sizeof(nmea_buffer) - 1) {
+                nmea_buffer[buffer_index++] = c;
+                
+                if (c == '\n') {
+                    nmea_buffer[buffer_index] = '\0';
+                    
+                    if (parse_nmea(nmea_buffer, &current_gps)) {
+                        if (current_gps.isValid) {
+                            uint8_t near_point = check_route_proximity(&current_gps);
+                            if (near_point) {
+                                // Point reached, take appropriate action
+                            }
+                        }
+                    }
+                    buffer_index = 0;
+                }
+            }
+        }
+    }
+    
+    return 0;
 }
