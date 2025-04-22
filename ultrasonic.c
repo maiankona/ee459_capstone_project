@@ -6,10 +6,10 @@
 // Pin definitions
 #define TRIG_DDR  DDRC
 #define TRIG_PORT PORTC
-#define TRIG_PIN  PC5
+#define TRIG_PIN  PB7
 #define ECHO_DDR  DDRC
 #define ECHO_PORT PORTC
-#define ECHO_PIN  PC4
+#define ECHO_PIN  PD2
 #define ECHO_PIN_REG PINC
 
 // Safety thresholds (in centimeters)
