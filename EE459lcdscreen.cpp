@@ -29,7 +29,7 @@ int highlightedRoute = 1; // 1 for Route 1, 2 for Route 2
 
 void setup() {
   //Initializes the pins for input
-  DDRC |= (1 << LEFT)|(1 << RIGHT) | (1 << SELECT);
+  DDRC &= ~((1 << LEFT)|(1 << RIGHT) | (1 << SELECT));
   tft.begin();
   tft.setRotation(3); // Adjust for your screen orientation
   tft.fillScreen(ILI9341_BLACK);
