@@ -1,17 +1,24 @@
+//This allows the creation of graphics
 #include <Adafruit_GFX.h>
+
+//Helps with SPI communication
 #include <Adafruit_ILI9341.h>
 
-// Pin definitions
+// Pin definitions [Update]
 #define TFT_CS     10
 #define TFT_RST    9
 #define TFT_DC     8
 
 // Button pins (adjust these to match your circuit)
-#define BUTTON_LEFT 2
-#define BUTTON_RIGHT 3
-#define BUTTON_SELECT 4
+#define LEFT 2
+#define RIGHT 3
+#define SELECT 4
 
 // Create an instance of the ILI9341 display
+// tft --> the instance 
+// TFT_CS --> chip select (im talking to you) 
+// TFT_DC --> data/command (differentiates command and pixel information) 
+// TFT_RST --> reset 
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 
 // Variables for speed and route
@@ -21,10 +28,8 @@ int currentState = 0; // 0=Menu, 1=Route Selection, 2=Speed Selection, 3=Running
 int highlightedRoute = 1; // 1 for Route 1, 2 for Route 2
 
 void setup() {
-  pinMode(BUTTON_LEFT, INPUT_PULLUP);
-  pinMode(BUTTON_RIGHT, INPUT_PULLUP);
-  pinMode(BUTTON_SELECT, INPUT_PULLUP);
-
+  //Initializes the pins for input
+  DDRC |= (1 << LEFT)|(1 << RIGHT) | (1 << SELECT);
   tft.begin();
   tft.setRotation(3); // Adjust for your screen orientation
   tft.fillScreen(ILI9341_BLACK);
