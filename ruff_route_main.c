@@ -70,6 +70,7 @@ Lets Go state
 1. LCD displays "LETS GO!
                 miles walked: 00 "
 2. motors go on until the route is finished via geofencing.c file
+- geofencing code should also include ultrasonic sensor code that when an object is in front of the dog, the motors stop until he object goes away, then it continues the route
 3. keeps track of distance via GPS module coordinates and updates it every second on the lcd
 GPS uses UART pins
 4. when the path is finished (last coordinate on gps module route is reached) -> go to Congrats state
