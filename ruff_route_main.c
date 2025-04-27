@@ -1,5 +1,5 @@
-// Initial state
-/* 1. turn all motors off : // Motor A (Front Left) direction pins
+/* Initial state
+1. turn all motors off : // Motor A (Front Left) direction pins
 #define MOTOR_A_PIN1   PD6
 #define MOTOR_A_PIN2   PD7
 #define MOTOR_A_PWM    PB2
@@ -11,11 +11,11 @@
 
 2. turn led lights on by switching power on to the board
 3. route selection is cleared (only 2 routes)
-4. start to keep track of time and mark when 24 hours hits
+4. start to keep track of time and mark when 24 hours hits and speaker outputs beep sound (from bark.c file) when time is up until user turns on the dog
 5. LCD screen displays text "WELCOME
                             Select your route
                             WOOF"
-20x4 characters, serial (I2C), white-on-blue Crystalfontz CFAH2004AC-TMI-EW lcd is i2c we're using sda and scl pins from atmegat328p, csb pin will be PD3
+20x4 characters, serial (I2C), white-on-blue Crystalfontz CFAH2004AC-TMI-EW lcd we're using sda and scl pins from atmegat328p, csb pin will be PD3
 arrow state transitions:
 - if no button is clicked stay in intial state
 - if any button PC1 (left), PC2 (select), PC3 (right) is clicked go to state route 1
@@ -69,9 +69,10 @@ Fast state
 Lets Go state
 1. LCD displays "LETS GO!
                 miles walked: 00 "
-2. keeps track of distance via GPS module coordinates and updates it every second on the lcd
+2. motors go on until the route is finished via geofencing.c file
+3. keeps track of distance via GPS module coordinates and updates it every second on the lcd
 GPS uses UART pins
-3. when the path is finished (last coordinate on gps module route is reached) -> go to Congrats state
+4. when the path is finished (last coordinate on gps module route is reached) -> go to Congrats state
 */
 
 /*
